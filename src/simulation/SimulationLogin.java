@@ -27,6 +27,8 @@ public class SimulationLogin {
 	public static void main (String args[]) throws Exception{
 		String userName = "w1570631036@sina.com";
 		String password = "wenzhihuai2017";
+		
+		
 		 userName =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
 		 password =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
 		 
