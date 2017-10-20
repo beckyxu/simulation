@@ -1,9 +1,16 @@
 package simulation;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.SecureRandom;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 import net.sf.json.JSONObject;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
@@ -18,15 +25,26 @@ public class SimulationLogin {
 		
 	}
 	public static void main (String args[]) throws Exception{
-		LoginUser user = new LoginUser();
-		user.setUserName("w1570631036@sina.com");
-		user.setPassword("wenzhihuai2017");
+		String userName = "w1570631036@sina.com";
+		String password = "wenzhihuai2017";
+		 userName =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
+		 password =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
+		 
+		 KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");  
+		 keyPairGen.initialize(1024,new SecureRandom()); 
+		 KeyPair keyPair = keyPairGen.generateKeyPair();  
+	        // å¾—åˆ°ç§é’¥  
+	        RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();  
+	        // å¾—åˆ°å…¬é’¥  
+	        RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();  
+		 System.out.println("userName:"+userName);
 		String responseBody ="";
 		CloseableHttpClient httpclient = HttpClients.createDefault();  
 	        try {
-	        	//µã»÷ÓÃ»§ÃûÖ®ºó»á·¢³öÒ»¸öÇëÇó
-	            HttpGet httpget = new HttpGet(URLConstant.PRE_LOGIN_URL+"?"+
-	            				ParamConstant.allToString()+"su="+user.getUserName()+"&_="+Math.random());
+	        	//ç‚¹å‡»ç”¨æˆ·åä¹‹åä¼šå‘å‡ºä¸€ä¸ªè¯·æ±‚
+	            HttpGet httpget = new HttpGet("http://login.sina.com.cn/sso/prelogin.php"+"?"+
+	            				"entry=weibo&callback=sinaSSOController.preloginCallBack&"
+	            				+ "rsakt=mod&checkpin=1&client=ssologin.js(v1.4.18)&su="+userName+"&_="+System.currentTimeMillis());
 
 	            System.out.println("Executing request " + httpget.getRequestLine());
 
@@ -52,16 +70,23 @@ public class SimulationLogin {
 	        } finally {
 	            httpclient.close();
 	        }
-	      //¶Ôpassword½øĞĞ±àÂë
+	      //å¯¹passwordè¿›è¡Œç¼–ç 
 	        int pos = responseBody.indexOf("(");
 	        responseBody = responseBody.substring(pos+1);
 	        responseBody = responseBody.substring(0, responseBody.length()-1);
 	   	    JSONObject json_test = JSONObject.fromObject(responseBody); 
-	   	    String serverTime = (String) json_test.get("servertime");
+	   	    
+	   	    Integer serverTime = (Integer) json_test.get("servertime");
 	   	    String nonce = (String) json_test.get("nonce");
-	     	String password = user.getPassword();
+	     	String rsakv = (String) json_test.get("rsakv");
+	     	String pubkey = (String) json_test.get("pubkey");
+	   	    
+	   	 keyPairGen.initialize(	Integer.parseInt(pubkey),new SecureRandom()); 
 	     	
 	   	    System.out.println(json_test);
+	   	    System.out.println("serverTime:"+serverTime+" nonce"+nonce);
+	   	    
+	   	    
 	    }	
 	
 }
@@ -287,7 +312,7 @@ public class SimulationLogin {
             var loginRFValue = that.loginRF.value;
             if (window.ucweb && window.ucweb.startRequest && loginRFValue != 1) {
                 var ucCode = window.ucweb.startRequest('shell.comments.getToken', ['weibo', 'noauth']);
-                var url = 'https://passport.weibo.cn/sso/uclogin';//phpÇëÇó½Ó¿Ú
+                var url = 'https://passport.weibo.cn/sso/uclogin';//phpè¯·æ±‚æ¥å£
                 if (ucCode && trim(ucCode.length > 8)) {
                     ajax({
                         url: 'https://passport.weibo.cn/signin/ajuclogin',
@@ -424,11 +449,11 @@ public class SimulationLogin {
                 };
 
                 if (deviceType && deviceType == 'ios') {
-                    // ios: ĞÂ·½·¨
+                    // ios: æ–°æ–¹æ³•
                     logByAppAuth_new();
                 }
                 else {
-                    //android: ¸ù¾İ°æ±¾ºÅÅĞ¶Ï
+                    //android: æ ¹æ®ç‰ˆæœ¬å·åˆ¤æ–­
                     jsonp({
                         url: 'http://127.0.0.1:9527/query?appid=com.sina.weibo',
                         onsuccess: function (ret) {
@@ -439,13 +464,13 @@ public class SimulationLogin {
                                     var curVer = result.versionName || '0';
                                     var isUpperVer = compareVersion(baseVer, curVer);
                                     if (isUpperVer) {
-                                        // Android5.3.0ÒÔÉÏ£ºĞÂ·½·¨
+                                        // Android5.3.0ä»¥ä¸Šï¼šæ–°æ–¹æ³•
                                         if (appScheme) {
                                             that.openClient(appScheme);
                                         }
                                     }
                                     else {
-                                        // AndroidµÍ°æ±¾ ¾É·½·¨
+                                        // Androidä½ç‰ˆæœ¬ æ—§æ–¹æ³•
                                         ajax({
                                             url: "https://passport.weibo.cn/sso/ajgetappt?entry=abc",
                                             type: 'get',
@@ -509,10 +534,10 @@ public class SimulationLogin {
             var _TIME_OUT = 3000;
             var timer = setTimeout(function () {
                 var endTime = Date.now();
-                //Èç¹û×°ÁËapp²¢Ìøµ½¿Í»§¶Ëºó£¬endTime - startTime Ò»¶¨> timeout + 200
+                //å¦‚æœè£…äº†appå¹¶è·³åˆ°å®¢æˆ·ç«¯åï¼ŒendTime - startTime ä¸€å®š> timeout + 200
                 if (!startTime || endTime - startTime < _TIME_OUT + 200) {
-                    that.logByAppAuth.innerHTML = '<span style="color:red;">ºôÆğÊ§°Ü</span>';
-                    that.showTips('µÇÂ¼Ê§°Ü£¬ÇëÊ¹ÓÃÆäËü·½Ê½µÇÂ¼');
+                    that.logByAppAuth.innerHTML = '<span style="color:red;">å‘¼èµ·å¤±è´¥</span>';
+                    that.showTips('ç™»å½•å¤±è´¥ï¼Œè¯·ä½¿ç”¨å…¶å®ƒæ–¹å¼ç™»å½•');
                     ajax({
                         url: STAT_URL + '?' + 'entry=' + ENTRY + '&tag=apponekey&act=' + action + '&stat=' + STAT_ONEKEY_FAIL,
                         type: 'get'
@@ -591,8 +616,8 @@ public class SimulationLogin {
             this.needVerifyCode = false;
             this.needMobile = true;
             this.dVerifyCode.style.display = 'none';
-            this.errorDialogBtnT.innerHTML = 'ÑéÖ¤ÂëµÇÂ¼';
-            this.errorDialogMsg.innerHTML = 'ÄúµÄÕËºÅÊÇÍ¨¹ı¿ìËÙ×¢²á·½Ê½»ñµÃµÄ£¬ĞèÍ¨¹ıÑéÖ¤ÂëµÇÂ½·½Ê½µÇÂ½Î¢²©';
+            this.errorDialogBtnT.innerHTML = 'éªŒè¯ç ç™»å½•';
+            this.errorDialogMsg.innerHTML = 'æ‚¨çš„è´¦å·æ˜¯é€šè¿‡å¿«é€Ÿæ³¨å†Œæ–¹å¼è·å¾—çš„ï¼Œéœ€é€šè¿‡éªŒè¯ç ç™»é™†æ–¹å¼ç™»é™†å¾®åš';
             this.errorDialog.style.display = 'block';
             this.setErrorDialogPanelPosition();
         },
@@ -649,11 +674,11 @@ public class SimulationLogin {
             if (that.featurecode.value || that.featurecode.value.trim().length !== 0) {
                 data.featurecode = that.featurecode.value;
             }
-            //Ö§¸¶ÃâµÇÂ¼Á÷³Ì ºì°ü·ÉĞÂÔö
+            //æ”¯ä»˜å…ç™»å½•æµç¨‹ çº¢åŒ…é£æ–°å¢
             data.hff = that.hff.value;
             data.hfp = that.hfp.value;
 
-            //µÇÂ¼wifi
+            //ç™»å½•wifi
             if (typeof Zepto != "undefined") {
                 Zepto.ajax({
                     url: LOGIN,
@@ -702,17 +727,17 @@ public class SimulationLogin {
         },
         callClientApp: function (options) {
             var conf = {
-                //¿Í»§¶ËAPPºôÆğĞ­ÒéµØÖ·
+                //å®¢æˆ·ç«¯APPå‘¼èµ·åè®®åœ°å€
                 protocol: '',
-                //¿Í»§¶ËÏÂÔØµØÖ·»òÕßÖĞ¼äÒ³µØÖ·
+                //å®¢æˆ·ç«¯ä¸‹è½½åœ°å€æˆ–è€…ä¸­é—´é¡µåœ°å€
                 url: '',
-                //¿ªÊ¼Ê±¼ä
+                //å¼€å§‹æ—¶é—´
                 startTime: Date.now(),
-                //ºôÆğ³¬Ê±µÈ´ıÊ±¼ä
+                //å‘¼èµ·è¶…æ—¶ç­‰å¾…æ—¶é—´
                 waiting: 800,
-                //ºôÆğ²Ù×÷ÏŞÖÆÊ±¼ä
+                //å‘¼èµ·æ“ä½œé™åˆ¶æ—¶é—´
                 callLimit: 50,
-                //ĞèÒªÌø×ªµ½ÏÂÔØµØÖ·Ê±
+                //éœ€è¦è·³è½¬åˆ°ä¸‹è½½åœ°å€æ—¶
                 onRedirect: function () {
                 }
             };
@@ -742,8 +767,8 @@ public class SimulationLogin {
             var wId;
             var isChrome = /(chrome|crios)\/([\d.]*)/.test(ua);
             if (isChrome) {
-                // chromeÏÂiframeÎŞ·¨»½ÆğAndroid¿Í»§¶Ë£¬ÕâÀïÊ¹ÓÃwindow.open
-                // ÁíÒ»¸ö·½°¸²Î¿¼ https://developers.google.com/chrome/mobile/docs/intents
+                // chromeä¸‹iframeæ— æ³•å”¤èµ·Androidå®¢æˆ·ç«¯ï¼Œè¿™é‡Œä½¿ç”¨window.open
+                // å¦ä¸€ä¸ªæ–¹æ¡ˆå‚è€ƒ https://developers.google.com/chrome/mobile/docs/intents
                 var w = window.open(conf.protocol);
                 wId = setInterval(function () {
                     if (typeof w === 'object') {
@@ -754,7 +779,7 @@ public class SimulationLogin {
             } else if (version && version >= 9) {
                 window.location = conf.protocol;
             } else {
-                // ´´½¨iframe
+                // åˆ›å»ºiframe
                 var iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
                 iframe.src = conf.protocol;
@@ -768,10 +793,10 @@ public class SimulationLogin {
                     clearInterval(wId);
                 }
 
-                //iosÏÂ£¬Ìø×ªµ½APP£¬Ò³ÃæJS»á±»×èÖ¹Ö´ĞĞ¡£
-                //Òò´ËÈç¹û³¬Ê±Ê±¼ä´ó´ó³¬¹ıÁËÔ¤ÆÚÊ±¼ä·¶Î§£¬¿É¶Ï¶¨APPÒÑ±»´ò¿ª¡£
+                //iosä¸‹ï¼Œè·³è½¬åˆ°APPï¼Œé¡µé¢JSä¼šè¢«é˜»æ­¢æ‰§è¡Œã€‚
+                //å› æ­¤å¦‚æœè¶…æ—¶æ—¶é—´å¤§å¤§è¶…è¿‡äº†é¢„æœŸæ—¶é—´èŒƒå›´ï¼Œå¯æ–­å®šAPPå·²è¢«æ‰“å¼€ã€‚
                 if (Date.now() - conf.startTime < conf.waiting + conf.callLimit) {
-                    // ÔÚÒ»¶¨Ê±¼äÄÚÎŞ·¨»½Æğ¿Í»§¶Ë£¬Ìø×ªÏÂÔØµØÖ·»òµ½ÖĞ¼äÒ³
+                    // åœ¨ä¸€å®šæ—¶é—´å†…æ— æ³•å”¤èµ·å®¢æˆ·ç«¯ï¼Œè·³è½¬ä¸‹è½½åœ°å€æˆ–åˆ°ä¸­é—´é¡µ
                     window.location = conf.url;
 
                     if (typeof conf.onRedirect === 'function') {
@@ -782,7 +807,7 @@ public class SimulationLogin {
         },
         saveHandler: function () {
             var that = this;
-            var html = '¸ÃÕËºÅÒÑ¿ªÆô°²È«Éè±¸£¬<a href="javascript:;" id="openApp">Çëµã´ËÊ¹ÓÃÎ¢²©¿Í»§¶ËµÇÂ¼</a>';
+            var html = 'è¯¥è´¦å·å·²å¼€å¯å®‰å…¨è®¾å¤‡ï¼Œ<a href="javascript:;" id="openApp">è¯·ç‚¹æ­¤ä½¿ç”¨å¾®åšå®¢æˆ·ç«¯ç™»å½•</a>';
             that.errorMsg.innerHTML = html;
             that.errorMsg.style.display = 'block';
             addEvent($('openApp'), 'touchend', function () {
@@ -808,29 +833,29 @@ public class SimulationLogin {
             win.location.href = href;
         },
         dealLoginFail: function (result) {
-            //·Ö³ÉÁ½ÖÖÏÔÊ¾·½Ê½£¬Ò»ÖÖÊÇÔÚ¶¥µ¼ÏÔÊ¾Ò»ÖÖÊÇÓÃµ¯²ãÏÔÊ¾
+            //åˆ†æˆä¸¤ç§æ˜¾ç¤ºæ–¹å¼ï¼Œä¸€ç§æ˜¯åœ¨é¡¶å¯¼æ˜¾ç¤ºä¸€ç§æ˜¯ç”¨å¼¹å±‚æ˜¾ç¤º
             var that = this;
             var loginRFValue = that.loginRF.value;
             if (result.retcode == 50011009 || result.retcode == 50011011 || result.retcode == 50011002 || result.retcode == 50011008 || result.retcode == 50011010 || result.retcode == 50011012) {
-                //µ±rfÎª1µÄÊ±ºòÖ»ÌáÊ¾´íÎó
+                //å½“rfä¸º1çš„æ—¶å€™åªæç¤ºé”™è¯¯
                 if (result.retcode == 50011002 && loginRFValue != 1) {
                     if (ERROR_COUNT >= 2) {
                         var errorData = parseJSON(result.data);
                         if (errorData.er == 1) {
-                            that.errorDialogBtnT.innerHTML = 'È·¶¨';
+                            that.errorDialogBtnT.innerHTML = 'ç¡®å®š';
                             addEvent(that.errorDialogBtnT, 'click', function () {
                                 win.location.href = 'http://m.weibo.cn/forgotpwd/index';
                             });
-                            that.errorDialogMsg.innerHTML = 'µÇÂ¼Ê§°Ü£¬ÊÇ·ñÕÒ»ØÃÜÂë£¿';
+                            that.errorDialogMsg.innerHTML = 'ç™»å½•å¤±è´¥ï¼Œæ˜¯å¦æ‰¾å›å¯†ç ï¼Ÿ';
                             that.errorDialog.style.display = 'block';
                             that.setErrorDialogPanelPosition();
                         }
-                    } else if (result.data.im === 1) {//Ö»ÓĞ°ó¶¨ÊÖ»úµÄÓÃ»§²ÅÔÚÁ½´Î´íÎóµÄÊ±ºò³öÏÖÊ¹ÓÃÊÖ»úÑéÖ¤ÂëµÇÂ¼µÄÁ÷³Ì
+                    } else if (result.data.im === 1) {//åªæœ‰ç»‘å®šæ‰‹æœºçš„ç”¨æˆ·æ‰åœ¨ä¸¤æ¬¡é”™è¯¯çš„æ—¶å€™å‡ºç°ä½¿ç”¨æ‰‹æœºéªŒè¯ç ç™»å½•çš„æµç¨‹
 
                         if (ERROR_COUNT_Mobile === 1) {
 
-                            that.errorDialogBtnT.innerHTML = 'ÑéÖ¤ÂëµÇÂ¼';
-                            that.errorDialogMsg.innerHTML = 'ÕÊºÅ»òÃÜÂë´íÎó£¬ÄãÒ²¿ÉÒÔÑ¡Ôñ¶ÌĞÅÑéÖ¤Âë·½Ê½µÇÂ¼Î¢²©¡£';
+                            that.errorDialogBtnT.innerHTML = 'éªŒè¯ç ç™»å½•';
+                            that.errorDialogMsg.innerHTML = 'å¸å·æˆ–å¯†ç é”™è¯¯ï¼Œä½ ä¹Ÿå¯ä»¥é€‰æ‹©çŸ­ä¿¡éªŒè¯ç æ–¹å¼ç™»å½•å¾®åšã€‚';
                             that.errorDialog.style.display = 'block';
                             that.setErrorDialogPanelPosition();
 
@@ -854,12 +879,12 @@ public class SimulationLogin {
             } else if (result.retcode == 50030000) {
                 that.saveHandler();
             } else if(result.retcode == 50050002) {
-                that.errorMsg.innerHTML = "ÄúÒÑ¿ªÆôµÇÂ¼±£»¤£¬Çë²éÊÕ@Î¢²©°²È«ÖĞĞÄ·¢À´µÄË½ĞÅ£¬°´ÌáÊ¾Íê³ÉµÇÂ¼¡£" + "<a href='http://kefu.weibo.com/faqdetail?id=20200'>²é¿´°ïÖú</a>";
+                that.errorMsg.innerHTML = "æ‚¨å·²å¼€å¯ç™»å½•ä¿æŠ¤ï¼Œè¯·æŸ¥æ”¶@å¾®åšå®‰å…¨ä¸­å¿ƒå‘æ¥çš„ç§ä¿¡ï¼ŒæŒ‰æç¤ºå®Œæˆç™»å½•ã€‚" + "<a href='http://kefu.weibo.com/faqdetail?id=20200'>æŸ¥çœ‹å¸®åŠ©</a>";
                 that.errorMsg.style.display = 'block';
             }else if(result.retcode == 50050004){
                 location.href = 'https://passport.weibo.cn/sso/loginprotectlogin?action=getcode';
             } else if(result.retcode == 50011005){
-                //ÒìµØµÇÂ¼µÄÓÃ»§ĞèÒªÊäÈëÑéÖ¤Âë
+                //å¼‚åœ°ç™»å½•çš„ç”¨æˆ·éœ€è¦è¾“å…¥éªŒè¯ç 
                 that.errorMsg.innerHTML = result.msg;
                 that.errorMsg.style.display = 'block';
                 that.getVerifyImage(that, that.excuteLogin);
@@ -937,23 +962,23 @@ public class SimulationLogin {
             var password = trim(this.loginPassword.value);
             if (this.mode == 0) {
                 if (username.length == 0) {
-                    this.errorMsg.innerHTML = 'ÓÃ»§Ãû²»ÄÜÎª¿Õ';
+                    this.errorMsg.innerHTML = 'ç”¨æˆ·åä¸èƒ½ä¸ºç©º';
                     this.errorMsg.style.display = 'block';
                     return false;
                 } else if (password.length == 0 && !this.needMobile) {
-                    this.errorMsg.innerHTML = 'ÃÜÂë²»ÄÜÎª¿Õ';
+                    this.errorMsg.innerHTML = 'å¯†ç ä¸èƒ½ä¸ºç©º';
                     this.errorMsg.style.display = 'block';
                     return false;
                 }
             } else {
                 if (password.length == 0 && !this.needMobile) {
-                    this.errorMsg.innerHTML = 'ÃÜÂë²»ÄÜÎª¿Õ';
+                    this.errorMsg.innerHTML = 'å¯†ç ä¸èƒ½ä¸ºç©º';
                     this.errorMsg.style.display = 'block';
                     return false;
                 }
             }
             if (this.needWeidun && trim(this.weidunCode.value).length == 0) {
-                this.errorMsg.innerHTML = 'ÇëÊäÈëÎ¢¶Ü¶¯Ì¬Âë';
+                this.errorMsg.innerHTML = 'è¯·è¾“å…¥å¾®ç›¾åŠ¨æ€ç ';
                 this.errorMsg.style.display = 'block';
                 return false;
             }
@@ -965,7 +990,7 @@ public class SimulationLogin {
             if (that.mode != 0 && oldUserName === username) {
                 return true;
             } else {
-                //Ôö¼Ó¶ÔÓÚÊÖ»úÑéÖ¤ÂëµÇÂ½Çé¿öµÄÅĞ¶Ï£¬£¬Ôö¼ÓÒ»¸ö³¬Á´£¬Ôö¼ÓÒ»¸öµã»÷ÊÂ¼ş
+                //å¢åŠ å¯¹äºæ‰‹æœºéªŒè¯ç ç™»é™†æƒ…å†µçš„åˆ¤æ–­ï¼Œï¼Œå¢åŠ ä¸€ä¸ªè¶…é“¾ï¼Œå¢åŠ ä¸€ä¸ªç‚¹å‡»äº‹ä»¶
                 if (that.mode != 0) {
                     that.mode = 0;
                     that.avatarWrapper.innerHTML = '';
@@ -976,12 +1001,12 @@ public class SimulationLogin {
                         if (ret.retcode === 0) {
                             if (ret.nopwd === 1 && ret.lm == 1) {
                                 that.dVerifyCode.style.display = 'none';
-                                that.errorDialogBtnT.innerHTML = 'ÑéÖ¤ÂëµÇÂ¼';
-                                that.errorDialogMsg.innerHTML = 'ÄúµÄÕËºÅÊÇÍ¨¹ı¿ìËÙ×¢²á·½Ê½»ñµÃµÄ£¬ĞèÍ¨¹ıÑéÖ¤ÂëµÇÂ½·½Ê½µÇÂ½Î¢²©';
+                                that.errorDialogBtnT.innerHTML = 'éªŒè¯ç ç™»å½•';
+                                that.errorDialogMsg.innerHTML = 'æ‚¨çš„è´¦å·æ˜¯é€šè¿‡å¿«é€Ÿæ³¨å†Œæ–¹å¼è·å¾—çš„ï¼Œéœ€é€šè¿‡éªŒè¯ç ç™»é™†æ–¹å¼ç™»é™†å¾®åš';
                                 that.errorDialog.style.display = 'block';
                                 that.setErrorDialogPanelPosition();
                             } else {
-                                //Ìí¼Ó
+                                //æ·»åŠ 
                                 switch (ret.showpin) {
                                     case 1:
                                         that.dVerifyCode.style.display = 'none';
