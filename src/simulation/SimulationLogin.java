@@ -1,45 +1,51 @@
 package simulation;
 
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.URLEncoder;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.SecureRandom;
-import java.security.interfaces.RSAPrivateKey;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.HashMap;
+import java.util.Map;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 public class SimulationLogin {
-	public void preLogin() {
-		
-	}
+	 private static final char[] DIGITS_LOWER = { '0', '1', '2', '3', '4', '5',  
+         '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };  
+
+ private static final char[] DIGITS_UPPER = { '0', '1', '2', '3', '4', '5',  
+         '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };  
+	
 	public static void main (String args[]) throws Exception{
-		String userName = "w1570631036@sina.com";
-		String password = "wenzhihuai2017";
+		String userName = "18826274794";
+		String password = "5313916";
+		/*userName = getEncodeUserName(userName);
+		encodePassword(resolveJson(prelogin( userName)),password);*/
+		login(userName,password);
 		
-		
-		 userName =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
-		 password =Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
-		 
-		 KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");  
-		 keyPairGen.initialize(1024,new SecureRandom()); 
-		 KeyPair keyPair = keyPairGen.generateKeyPair();  
-	        // 得到私钥  
-	        RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();  
-	        // 得到公钥  
-	        RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();  
-		 System.out.println("userName:"+userName);
+		/* 
 		String responseBody ="";
 		CloseableHttpClient httpclient = HttpClients.createDefault();  
 	        try {
@@ -83,14 +89,155 @@ public class SimulationLogin {
 	     	String rsakv = (String) json_test.get("rsakv");
 	     	String pubkey = (String) json_test.get("pubkey");
 	   	    
-	   	 keyPairGen.initialize(	Integer.parseInt(pubkey),new SecureRandom()); 
 	     	
 	   	    System.out.println(json_test);
 	   	    System.out.println("serverTime:"+serverTime+" nonce"+nonce);
 	   	    
-	   	    
+	   	    */
 	    }	
 	
+    public static void login(String userName,String password) throws Exception {  
+		userName = getEncodeUserName(userName);
+		
+        String url = "http://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.18)&_=" +   
+                System.currentTimeMillis();  
+        String content = prelogin(userName);  
+        Map<String,String> paramMap = resolveJson(content);  
+        password =  encodePassword(paramMap,password);
+        
+        String servertime = paramMap.get("servertime").toString();  
+        String nonce = paramMap.get("nonce").toString();  
+        String rsakv = paramMap.get("rsakv").toString();  
+          
+        Map<String,String> params = new HashMap<String,String>();  
+        params.put("entry", "weibo");  
+        params.put("gateway", "1");  
+        params.put("from", "");  
+        params.put("savestate", "7");  
+        params.put("useticket", "1");  
+        params.put("pagerefer", "http://my.sina.com.cn/");  
+        params.put("vsnf", "1");  
+        params.put("su", userName);  
+        params.put("service", "miniblog");  
+        params.put("servertime", servertime);  
+        params.put("nonce", nonce);  
+        params.put("pwencode", "rsa2");  
+        params.put("rsakv", rsakv);  
+        params.put("sp",password);  
+        params.put("encoding", "UTF-8");  
+        params.put("cdult", "2");  
+        params.put("domain", "weibo.com");  
+        params.put("prelt", "154");  
+        params.put("url", "http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack");  
+        params.put("domain", "weibo.com");  
+        params.put("returntype", "META");  
+          
+      //1.获得一个httpclient对象
+			CloseableHttpClient httpclient = HttpClients.createDefault();
+			//2.生成一个get请求
+			HttpPost post = new HttpPost(url);
+			JSONArray jsonArray = JSONArray.fromObject(params); 	
+			StringEntity reqEntity = new StringEntity(jsonArray.toString());
+			reqEntity.setContentType("application/x-www-form-urlencoded");
+			post.setEntity(reqEntity);
+			//3.执行get请求并返回结果
+			CloseableHttpResponse response = httpclient.execute(post); 				
+			HttpEntity entity = null;
+			try {
+				System.out.println("登陆login response:"+ response);
+				 entity = response.getEntity();
+				String res = EntityUtils.toString(entity);
+				System.out.println("登陆login res:"+ res);
+			} finally {
+			    response.close();
+			} 				
+        //System.out.println(json);  
+    } 
+	
+	public static String encodePassword( Map<String,String> json,String password) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException {
+		String message = json.get("servertime") + "\t" + json.get("nonce") + "\n" + password;  
+		password = rsa(json.get("pubkey"),"10001",message);
+		System.out.println("password:"+password);
+		return password;
+	}
+	
+	public static String rsa(String pubkey, String exponentHex, String pwd) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException, InvalidKeyException  {  
+        KeyFactory factory = KeyFactory.getInstance("RSA");  
+  
+        RSAPublicKeySpec spec = new RSAPublicKeySpec(new BigInteger(pubkey, 16), new BigInteger(exponentHex, 16));  
+  
+        //创建公钥  
+        RSAPublicKey pub = (RSAPublicKey) factory.generatePublic(spec);  
+        Cipher enc = Cipher.getInstance("RSA");  
+        enc.init(Cipher.ENCRYPT_MODE, pub);  
+  
+        byte[] encryptedContentKey = enc.doFinal(pwd.getBytes("UTF-8"));
+        return new String( encodeHex(encryptedContentKey));  
+    }  
+	
+	public static Map<String,String> resolveJson(String response) {
+		 	JSONObject json_test = JSONObject.fromObject(response); 	
+		 	Map<String,String> map = new HashMap<String,String>();
+		 	map.put("servertime", json_test.get("servertime").toString());
+		 	map.put("nonce", json_test.get("nonce").toString());
+		 	map.put("rsakv", json_test.get("rsakv").toString());
+		 	map.put("pubkey", json_test.get("pubkey").toString());
+		 	System.out.println("map:"+map.toString());	        
+		 	return map;	     	
+	}
+	
+	 public static String prelogin(String userName) throws Exception {  
+		 String str = "http://login.sina.com.cn/sso/prelogin.php"+"?"+
+ 				"entry=weibo&callback=sinaSSOController.preloginCallBack&"
+ 				+ "rsakt=mod&checkpin=1&client=ssologin.js(v1.4.18)&su="+userName+"&_="+System.currentTimeMillis();
+ 				//1.获得一个httpclient对象
+ 				CloseableHttpClient httpclient = HttpClients.createDefault();
+ 				//2.生成一个get请求
+ 				HttpGet httpget = new HttpGet(str);
+ 				//3.执行get请求并返回结果
+ 				CloseableHttpResponse response = httpclient.execute(httpget); 				
+ 				HttpEntity entity = null;
+ 				String replace = null;
+ 				try {
+ 					 entity = response.getEntity();
+ 					String res = EntityUtils.toString(entity);
+ 					System.out.println("res:"+ res);
+ 	 				replace = res.replaceAll("sinaSSOController.preloginCallBack\\((.*)\\)", "$1");
+ 	 				System.out.println("replace:"+ replace);
+ 				} finally {
+ 				    response.close();
+ 				} 				
+	        return replace;  
+	    }  
+	
+	public static String getEncodeUserName(String userName) {
+		try {
+		    userName = Base64.encodeBase64String(URLEncoder.encode(userName,"UTF-8").getBytes()).toString();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		System.out.println("userName:"+userName);
+		return userName;
+	}
+	
+	 protected static char[] encodeHex(final byte[] data, final char[] toDigits) {  
+	        final int l = data.length;  
+	        final char[] out = new char[l << 1];  
+	          
+	        for (int i = 0, j = 0; i < l; i++) {  
+	            out[j++] = toDigits[(0xF0 & data[i]) >>> 4];  
+	            out[j++] = toDigits[0x0F & data[i]];  
+	        }  
+	        return out;  
+	    }  
+	  
+	    public static char[] encodeHex(final byte[] data, final boolean toLowerCase) {  
+	        return encodeHex(data, toLowerCase ? DIGITS_LOWER : DIGITS_UPPER);  
+	    }  
+	  
+	    public static char[] encodeHex(final byte[] data) {  
+	        return encodeHex(data, true);  
+	    }  
 }
 //https://login.sina.com.cn/sso/prelogin.php?entry=weibo&callback=sinaSSOController.preloginCallBack&su=MTg4MjYyNzQ3OTQ%3D&rsakt=mod&checkpin=1&client=ssologin.js(v1.4.19)&_=1507987864592
 //sinaSSOController.preloginCallBack({"retcode":0,"servertime":1507987865,"pcid":"gz-0ede2965d8010dd3075087e26ed4502ad23c","nonce":"F1DHEL","pubkey":"EB2A38568661887FA180BDDB5CABD5F21C7BFD59C090CB2D245A87AC253062882729293E5506350508E7F9AA3BB77F4333231490F915F6D63C55FE2F08A49B353F444AD3993CACC02DB784ABBB8E42A9B1BBFFFB38BE18D78E87A0E41B9B8F73A928EE0CCEE1F6739884B9777E4FE9E88A1BBE495927AC4A799B3181D6442443","rsakv":"1330428213","is_openlock":0,"lm":1,"smsurl":"https:\/\/login.sina.com.cn\/sso\/msglogin?entry=weibo&mobile=18826274794&s=b27f520589165f9d54f0361e8b0dd9fb","showpin":0,"exectime":115})
