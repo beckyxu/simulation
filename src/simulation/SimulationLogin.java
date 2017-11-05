@@ -1,5 +1,6 @@
 package simulation;
 
+import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLEncoder;
@@ -9,26 +10,37 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.swing.text.html.HTML;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.http.Header;
+import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpMessage;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
 public class SimulationLogin {
@@ -44,7 +56,7 @@ public class SimulationLogin {
 		/*userName = getEncodeUserName(userName);
 		encodePassword(resolveJson(prelogin( userName)),password);*/
 		login(userName,password);
-		
+
 		/* 
 		String responseBody ="";
 		CloseableHttpClient httpclient = HttpClients.createDefault();  
@@ -99,55 +111,126 @@ public class SimulationLogin {
     public static void login(String userName,String password) throws Exception {  
 		userName = getEncodeUserName(userName);
 		
-        String url = "http://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.18)&_=" +   
+        String url = "http://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.19)&_=" +   
                 System.currentTimeMillis();  
         String content = prelogin(userName);  
         Map<String,String> paramMap = resolveJson(content);  
         password =  encodePassword(paramMap,password);
         
+        
         String servertime = paramMap.get("servertime").toString();  
         String nonce = paramMap.get("nonce").toString();  
         String rsakv = paramMap.get("rsakv").toString();  
           
-        Map<String,String> params = new HashMap<String,String>();  
-        params.put("entry", "weibo");  
+        Map<String,Object> params = new HashMap<String,Object>();  
+        params.put("entry", "account");  
         params.put("gateway", "1");  
         params.put("from", "");  
-        params.put("savestate", "7");  
+        params.put("savestate", "30");  
+        params.put("qrcode_flag", "true");  
         params.put("useticket", "1");  
         params.put("pagerefer", "http://my.sina.com.cn/");  
         params.put("vsnf", "1");  
         params.put("su", userName);  
-        params.put("service", "miniblog");  
+        params.put("service", "sso");  
         params.put("servertime", servertime);  
         params.put("nonce", nonce);  
         params.put("pwencode", "rsa2");  
         params.put("rsakv", rsakv);  
         params.put("sp",password);  
+        params.put("sr","1366*768");  
         params.put("encoding", "UTF-8");  
-        params.put("cdult", "2");  
+        params.put("cdult", "3");  
         params.put("domain", "weibo.com");  
         params.put("prelt", "154");  
         params.put("url", "http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack");  
-        params.put("domain", "weibo.com");  
-        params.put("returntype", "META");  
+        params.put("domain", "sina.com.cn");  
+        params.put("prelt", "1117");  
+        params.put("returntype", "TEXT");  
           
       //1.获得一个httpclient对象
 			CloseableHttpClient httpclient = HttpClients.createDefault();
 			//2.生成一个get请求
 			HttpPost post = new HttpPost(url);
-			JSONArray jsonArray = JSONArray.fromObject(params); 	
-			StringEntity reqEntity = new StringEntity(jsonArray.toString());
-			reqEntity.setContentType("application/x-www-form-urlencoded");
-			post.setEntity(reqEntity);
+			
+			 List<NameValuePair> nvps = new ArrayList <NameValuePair>();  
+	          
+		        Set<String> keySet = params.keySet();  
+		        for(String key : keySet) {  
+		            nvps.add(new BasicNameValuePair(key, (String)params.get(key)));  
+		        }  
+		        try {  
+		            post.setEntity(new UrlEncodedFormEntity(nvps));  
+		        } catch (UnsupportedEncodingException e) {  
+		            e.printStackTrace();  
+		        }  
+			
 			//3.执行get请求并返回结果
 			CloseableHttpResponse response = httpclient.execute(post); 				
 			HttpEntity entity = null;
 			try {
 				System.out.println("登陆login response:"+ response);
 				 entity = response.getEntity();
+				 
+				Header[] headerArray = response.getAllHeaders();
+				String str = "";
+			        for(Header header : headerArray)
+			        {
+			        	str+=header.getValue()+";";
+			        	if("Set-Cookie".equals(header.getName())) {
+			        		HeaderElement[] headerElementArray = header.getElements();
+			        		 for(HeaderElement headerElement : headerElementArray)
+					            {
+
+			        			// str+=headerElement.getName()+":"+headerElement.getValue()+";";
+					               
+					            }			        		
+			        		
+			        	}
+			        	
+			            System.out.println("--Header-----------------------------------------");
+			            System.out.println("----Key: " + header.getName());
+			            System.out.println("----RawValue: " + header.getValue());
+			            HeaderElement[] headerElementArray = header.getElements();
+			            for(HeaderElement headerElement : headerElementArray)
+			            {
+			                System.out.print("------Value: " + headerElement.getName());
+			                if(null != headerElement.getValue())
+			                {
+			                    System.out.println("  <-|->  " + headerElement.getValue());
+			                }
+			                else
+			                {
+			                    System.out.println();
+			                }
+			                NameValuePair[] nameValuePairArray = headerElement.getParameters();
+			                for(NameValuePair nameValuePair : nameValuePairArray)
+			                {
+			                    System.out.println("------Parameter: " + nameValuePair.getName() + "  <-|->  " + nameValuePair.getValue());
+			                }
+			            }
+			        }
+			        String sub = str.replaceAll(".*;SUB=(.*);SUBP=.*", "$1");  
+			        
+			        System.out.println("--str-----------------------------------------"+str);
+		           System.out.println("--sub-----------------------------------------"+sub);
+		            
+		           
 				String res = EntityUtils.toString(entity);
 				System.out.println("登陆login res:"+ res);
+				 String wenzhang = "http://weibo.com/wenzhang626";  
+				 HttpGet request = new HttpGet(wenzhang);//这里发送get请求
+
+			        request.setHeader("Cookie", str);
+
+			     
+			       response = httpclient.execute(request); 	
+			       entity = response.getEntity();
+			       res = EntityUtils.toString(entity);
+			       FileOutputStream fis  =new FileOutputStream("d://test");
+			       fis.write(res.getBytes());
+			       fis.close();
+			      // System.out.println("登陆get res:"+ res);
 			} finally {
 			    response.close();
 			} 				
