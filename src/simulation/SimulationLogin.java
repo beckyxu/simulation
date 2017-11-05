@@ -42,11 +42,12 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
-
+    
 public class SimulationLogin {
 	 private static final char[] DIGITS_LOWER = { '0', '1', '2', '3', '4', '5',  
          '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };  
-
+	 
+	 
  private static final char[] DIGITS_UPPER = { '0', '1', '2', '3', '4', '5',  
          '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };  
 	
@@ -230,7 +231,7 @@ public class SimulationLogin {
 			       FileOutputStream fis  =new FileOutputStream("d://test");
 			       fis.write(res.getBytes());
 			       fis.close();
-			      // System.out.println("登陆get res:"+ res);
+			       System.out.println("登陆get res:"+ res);
 			} finally {
 			    response.close();
 			} 				
